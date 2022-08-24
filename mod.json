@@ -1,0 +1,25 @@
+{
+	"Name" : "cat_or_not.DropshipDrivable",
+	"Description" : "Makes dropships drivable",
+	"Version": "1.4.1",
+	"LoadPriority": 2,
+	"Scripts":
+	[
+		{
+			"Path": "_dropship_drivable.nut",
+			"RunOn": "SERVER && MP"
+		},
+		{
+			"Path": "_dropship_turret.nut",
+			"RunOn": "SERVER && MP",
+			"ServerCallback": {
+				"Before": "InitDropshipTurret"
+			}
+		},
+		{
+			"Path": "weapons/mp_nuke_rocket.nut",
+			"RunOn": "SERVER && MP"
+		}
+	]
+}
+
