@@ -27,8 +27,8 @@ const float drop_ship_base_speed = 1000.0
 const int base_rotation = 20
 const flight_limit = 10000
 
-const DRIVABLE_DROPSHIP_HEALTH = 8000
-const DRIVABLE_GUNSHIP_HEALTH = 6200
+const DRIVABLE_DROPSHIP_HEALTH = 3500
+const DRIVABLE_GUNSHIP_HEALTH = 4000
 
 /*
 ███████╗███████╗████████╗██╗   ██╗██████╗ 
