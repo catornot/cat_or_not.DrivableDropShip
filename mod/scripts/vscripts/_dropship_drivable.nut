@@ -57,8 +57,16 @@ DropShiptruct function SpawnDrivableDropShip( vector origin, vector angles = CON
     if( shipType == "gunship" )
     {
         curShipHealth = DRIVABLE_GUNSHIP_HEALTH
+        // if ( team == TEAM_IMC ) // TODO: make this work
+        // {
         ship.model.SetModel( $"models/vehicle/straton/straton_imc_gunship_01.mdl" )
         ship.model.SetValueForModelKey( $"models/vehicle/straton/straton_imc_gunship_01.mdl" )
+        // }
+        // else 
+        // {
+        //     ship.model.SetModel( $"models/vehicle/hornet/hornet_fighter.mdl" )
+        //     ship.model.SetValueForModelKey( $"models/vehicle/hornet/hornet_fighter.mdl" )
+        // }
     }
     if( shipType == "dropship" )
         thread PlayAnim( ship.model, "dropship_open_doorL", dropship.dropship.mover )
