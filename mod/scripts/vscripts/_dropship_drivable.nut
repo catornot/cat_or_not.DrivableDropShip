@@ -46,11 +46,12 @@ DropShiptruct function SpawnDrivableDropShip( vector origin, vector angles = CON
 
     DropShiptruct dropship
 
-    ShipStruct ship = SpawnDropShipLight( WorldToLocalOrigin( origin ), angles, team, true )
+    ShipStruct ship = SpawnDropShipLight( WorldToLocalOrigin( origin ), angles, team, true, shipType == "gunship" ? true : false )
     ship.behavior = eBehavior.CUSTOM
-
+    
     ship.mover.SetPusher( true )
     ship.model.SetPusher( true )
+
     dropship.shipType = shipType
     int curShipHealth = DRIVABLE_DROPSHIP_HEALTH
     if( shipType == "gunship" )
