@@ -230,6 +230,7 @@ void function NukeMissileThink( entity missile, entity owner, entity player, Wea
 			entity grenade = weapon.FireWeaponGrenade( attackParams.pos, <0,0,0>, <0,0,-10>, 800, damageTypes.projectileImpact, damageTypes.explosive, false, true, false )
 			if( grenade )
 			{
+				grenade.SetScriptName( "nuke" )
 				grenade.SetOwner( player )
 				thread DoNuclearExplosion( grenade, eDamageSourceId.mp_titancore_nuke_missile )
 			}

@@ -239,9 +239,16 @@ void function DropShipDrive( DropShiptruct dropship )
             pangles.y = pangles.y - attack_angles.y
             pangles.y = ( pangles.y + 180 ) % 360 - 180
 
-            attack_angles = <0,0,0>
+            // print( " before : player: " + pangles + ", ship: " + attack_angles )
             
-            // print( "player: " + pangles + ", ship: " + attack_angles )
+            // pangles.y = pangles.y.tointeger().tofloat()
+            // pangles.x = pangles.x.tointeger().tofloat()
+            // pangles += <360,360,0>
+
+            // // attack_angles = <360,360,0>
+            
+            // print( "after : player: " + pangles + ", ship: " + attack_angles )
+            // pain
 
             if ( abs( ( pangles.y - attack_angles.y ).tointeger() ) < 10 )
             {
