@@ -245,7 +245,7 @@ void function DropShipDrive( DropShiptruct dropship )
             // pangles.x = pangles.x.tointeger().tofloat()
             // pangles += <360,360,0>
 
-            // // attack_angles = <360,360,0>
+            attack_angles = <0,0,0>
             
             // print( "after : player: " + pangles + ", ship: " + attack_angles )
             // pain
