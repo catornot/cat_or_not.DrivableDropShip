@@ -1,5 +1,6 @@
 global function SpawnDrivableDropShip
 global function DEV_SpawnDrivableDropShip
+global function SetFlightBounds
 
 global function DropShipDied
 
@@ -23,9 +24,13 @@ global struct DropShiptruct
     entity laser
 }
 
+struct {
+    int flight_limit = 10000
+    int flight_limit_z = 7000
+} file
+
 const float drop_ship_base_speed = 1000.0
 const int base_rotation = 20
-const flight_limit = 10000
 
 const DRIVABLE_DROPSHIP_HEALTH = 3500
 const DRIVABLE_GUNSHIP_HEALTH = 4000
@@ -191,7 +196,7 @@ void function DropShipDrive( DropShiptruct dropship )
             return
         
         thing = mover.GetOrigin()
-        if ( thing.x > flight_limit || thing.x < -flight_limit || thing.y > flight_limit || thing.y < -flight_limit || thing.z > flight_limit - 3000 || thing.z < -flight_limit + 3000 )
+        if ( thing.x > file.flight_limit || thing.x < -file.flight_limit || thing.y > file.flight_limit || thing.y < -file.flight_limit || thing.z > file.flight_limit_z || thing.z < -file.flight_limit_z )
             model.TakeDamage( model.GetHealth() - 1, null, null, { damageSourceId=damagedef_suicide } )
 
         keys = GetPlayerKeysList( player )
@@ -399,7 +404,7 @@ void function DropShipDied( DropShiptruct dropship, entity model )
         if( !IsValid( model ) )
             break
         vector thing = model.GetOrigin()
-        if ( thing.x > flight_limit || thing.x < -flight_limit || thing.y > flight_limit || thing.y < -flight_limit || thing.z > flight_limit - 3000 || thing.z < -flight_limit + 3000 )
+        if ( thing.x > file.flight_limit || thing.x < -file.flight_limit || thing.y > file.flight_limit || thing.y < -file.flight_limit || thing.z > file.flight_limit_z || thing.z < -file.flight_limit_z )
             model.Destroy()
         
         WaitFrame()
@@ -431,7 +436,7 @@ void function PlayerFlyOut( entity player )
     while( !player.IsOnGround() && IsValid( player ) && IsAlive( player ) )
     {
         vector thing = player.GetOrigin()
-        if ( thing.x > flight_limit || thing.x < -flight_limit || thing.y > flight_limit || thing.y < -flight_limit || thing.z > flight_limit - 3000 || thing.z < -flight_limit + 3000 )
+        if ( thing.x > file.flight_limit || thing.x < -file.flight_limit || thing.y > file.flight_limit || thing.y < -file.flight_limit || thing.z > file.flight_limit - 3000 || thing.z < -file.flight_limit + 3000 )
             player.Die()
         
         WaitFrame()
@@ -797,7 +802,7 @@ void function UpdateDropshipCrosshair( DropShiptruct dropship )
 	vector attackPos = attackParams.pos
 	attackDir = Normalize( attackDir )
 
-    vector traceEnd = attackPos + attackDir * 56756 //max length
+    vector traceEnd = attackPos + attackDir * 30000 //max length // max lenght is dangerous
     TraceResults result = TraceLine( attackPos, traceEnd, [], TRACE_MASK_SHOT, TRACE_COLLISION_GROUP_NONE )
     
     dropship.crosshair.SetOrigin( result.endPos )
@@ -807,4 +812,10 @@ void function DEV_SpawnDrivableDropShip()
 {
     entity player = GetPlayerArray()[0]
     SpawnDrivableDropShip( player.GetOrigin(), CONVOYDIR, player.GetTeam() )
+}
+
+void function SetFlightBounds( int bound, int bound_z )
+{
+    file.flight_limit = bound
+    file.flight_limit_z = bound_z
 }
