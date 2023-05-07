@@ -4,6 +4,7 @@ global function DropShipMainAttack_Init
 global function SetupWeaponMarvin
 global function TryFireMissle
 global function TryFireBullet
+global function TryFireBombs
 global function DEV_NadeTest
 
 
@@ -12,7 +13,7 @@ void function DropShipMainAttack_Init()
     
 }
 
-void function SetupWeaponMarvin( DropShiptruct dropship, string shipType )
+void function SetupWeaponMarvin( DropShiptruct dropship, int shipType )
 {
     entity mover = dropship.dropship.mover
 	entity player = dropship.dropship.model.GetOwner()
@@ -25,16 +26,16 @@ void function SetupWeaponMarvin( DropShiptruct dropship, string shipType )
 	marvin.SetNoTarget( true )
 	marvin.ContextAction_SetBusy()
 	marvin.SetOwner( player )
-	marvin.SetBossPlayer( player ) // so hitscan weapons' kills will count as player's kills
 	HideName( marvin )
 	marvin.SetTitle( "dropship" )
 	thread PlayAnim( marvin, "commander_MP_flyin_marvin_idle", mover )
 
     TakeAllWeapons( marvin )
-	if( shipType == "gunship" )
+	if( shipType == eDrivableShipType.GunShip )
 	{
 		marvin.GiveWeapon( "mp_titanweapon_sticky_40mm" )
 		marvin.GiveWeapon( "mp_weapon_defender" )
+		marvin.SetBossPlayer( player ) // so hitscan weapons' kills will count as player's kills
 	}
 	else
 	{
@@ -56,7 +57,7 @@ void function TryFireMissle( DropShiptruct dropship )
 	entity mover = dropship.dropship.mover
 	entity owner = dropship.dropship.pilot
 	entity player = dropship.dropship.model.GetOwner()
-	string shipType = dropship.shipType
+	int shipType = dropship.shipType
 	
 	if ( !IsValid( owner ) )
 		SetupWeaponMarvin( dropship, shipType )
@@ -65,25 +66,16 @@ void function TryFireMissle( DropShiptruct dropship )
 	entity weapon = owner.GetActiveWeapon()
 	owner.SetAngles( mover.GetAngles() )
 
-	float cooldownLeft = dropship.time_fired - Time()
-    if ( cooldownLeft > 0 && dropship.gun_type == 0  )
-    {
-		
-		//EmitSoundOnEntityOnlyToPlayer( player, player, "UI_Networks_Invitation_Canceled" )
-		if( IsValid( player ) )
-			SendHudMessage(player, "Nuclear Missle not Ready, Cooldown Left: " + string( int( cooldownLeft ) ) + "秒" , -1, -0.35, 255, 255, 0, 255, 0, 1, 0)
+    if ( dropship.time_fired > Time() && dropship.gun_type == eDrivableShipWeapon.Nuke )
 		return
-	}
-	else if ( dropship.gun_type == 0 )
-	{
-		SendHudMessage(player, "Firing Muclear Missile" , -1, -0.35, 255, 255, 0, 255, 0, 2, 0)
+	else if ( dropship.gun_type == eDrivableShipWeapon.Nuke )
 		dropship.time_fired = Time() + 3
-	}
 
-	if ( dropship.time_fired_1 > Time() && dropship.gun_type == 1  )
+
+	if ( dropship.time_fired > Time() && dropship.gun_type == eDrivableShipWeapon.Missile )
 		return
-	else if ( dropship.gun_type == 1 )
-		dropship.time_fired_1 = Time() + 0.5
+	else if ( dropship.gun_type == eDrivableShipWeapon.Missile )
+		dropship.time_fired = Time() + 0.5
 
     
     weapon.EmitWeaponNpcSound( LOUD_WEAPON_AI_SOUND_RADIUS_MP, 0.2 )
@@ -123,16 +115,16 @@ void function TryFireBullet( DropShiptruct dropship )
 	entity mover = dropship.dropship.mover
 	entity owner = dropship.dropship.pilot
 	entity player = dropship.dropship.model.GetOwner()
-	string shipType = dropship.shipType
+	int shipType = dropship.shipType
 	
 	if ( !IsValid( owner ) )
 		SetupWeaponMarvin( dropship, shipType )
 	
 	owner = dropship.dropship.pilot
 	entity weapon
-	if( dropship.gun_type == 0 )
+	if( dropship.gun_type == eDrivableShipWeapon.Gun )
 		weapon = owner.GetMainWeapons()[0]
-	if( dropship.gun_type == 1 )
+	if( dropship.gun_type == eDrivableShipWeapon.Lazer )
 		weapon = owner.GetMainWeapons()[1]
 
 	owner.SetAngles( mover.GetAngles() )
@@ -140,15 +132,15 @@ void function TryFireBullet( DropShiptruct dropship )
 	if( !IsValid( weapon ) )
 		return
 
-    if ( dropship.time_fired > Time() && dropship.gun_type == 0  )
+    if ( dropship.time_fired > Time() && dropship.gun_type == eDrivableShipWeapon.Gun )
 		return
-	else if ( dropship.gun_type == 0 )
+	else if ( dropship.gun_type == eDrivableShipWeapon.Gun )
 		dropship.time_fired = Time() + 0.2
 
-	if ( dropship.time_fired_1 > Time() && dropship.gun_type == 1  )
+	if ( dropship.time_fired > Time() && dropship.gun_type == eDrivableShipWeapon.Lazer  )
 		return
-	else if ( dropship.gun_type == 1 )
-		dropship.time_fired_1 = Time() + 0.8
+	else if ( dropship.gun_type == eDrivableShipWeapon.Lazer )
+		dropship.time_fired = Time() + 0.8
 
     
     weapon.EmitWeaponNpcSound( LOUD_WEAPON_AI_SOUND_RADIUS_MP, 0.2 )
@@ -163,7 +155,7 @@ void function TryFireBullet( DropShiptruct dropship )
 	vector attackPos = attackParams.pos
 	attackDir = Normalize( attackDir )
 
-	if ( dropship.gun_type == 0 )
+	if ( dropship.gun_type == eDrivableShipWeapon.Gun )
 	{
 		entity bolt = weapon.FireWeaponBolt( attackPos, attackDir, 8000, damageTypes.gibBullet | DF_IMPACT | DF_EXPLOSION | DF_RAGDOLL | DF_KNOCK_BACK, DF_EXPLOSION | DF_RAGDOLL | DF_KNOCK_BACK, false , 0 )
 		EmitSoundAtPosition( owner.GetTeam(), mover.GetOrigin(), "Weapon_40mm_Fire_3P" )
@@ -172,13 +164,47 @@ void function TryFireBullet( DropShiptruct dropship )
 			bolt.SetOwner( player )
 		}
 	}
-	if ( dropship.gun_type == 1 )
+	if ( dropship.gun_type == eDrivableShipWeapon.Lazer )
 	{
 		weapon.FireWeaponBullet( attackPos, attackDir, 1, weapon.GetWeaponDamageFlags() )
 		EmitSoundAtPosition( owner.GetTeam(), mover.GetOrigin(), "Weapon_ChargeRifle_Fire_3P" )
 		vector traceEnd = attackPos + attackDir * 56756 //max length
 		TraceResults result = TraceLine( attackPos, traceEnd, [], TRACE_MASK_SHOT, TRACE_COLLISION_GROUP_NONE )
-		CreateWeaponTracer( attackPos , result.endPos ,0.05)
+		CreateWeaponTracer( attackPos , result.endPos ,0.05 )
+	}
+}
+
+void function TryFireBombs( DropShiptruct dropship )
+{
+	entity mover = dropship.dropship.mover
+	entity owner = dropship.dropship.pilot
+	entity player = dropship.dropship.model.GetOwner()
+	
+	if ( !IsValid( owner ) )
+		SetupWeaponMarvin( dropship, dropship.shipType )
+	
+	owner = dropship.dropship.pilot
+
+	entity weapon = owner.GetOffhandWeapon( OFFHAND_SPECIAL )
+	if( !IsValid( weapon ) )
+		return
+
+	if ( dropship.time_fired > Time() )
+		return
+	else 
+		dropship.time_fired = Time() + 0.5
+
+	vector attackPos = mover.GetOrigin() + ( mover.GetForwardVector() * 400 ) + ( mover.GetUpVector() * -100 )
+	
+	vector attackDir = AnglesToForward( < mover.GetAngles().x, mover.GetAngles().y, 0.0 > ) * 100 + <0,0,-300>
+
+	entity grenade = weapon.FireWeaponGrenade( attackPos, attackDir, attackDir, 1, damageTypes.projectileImpact, damageTypes.explosive, false, true, false )
+	if( grenade )
+	{
+		grenade.SetScriptName( "nuke" )
+		grenade.SetOwner( player )
+		grenade.ClearBossPlayer()
+		SetTeam( grenade, player.GetTeam() )
 	}
 }
 
@@ -269,7 +295,10 @@ void function MissileThink( entity missile, entity owner, entity player, WeaponP
 
 			entity grenade = weapon.FireWeaponGrenade( attackParams.pos, <0,0,0>, <0,0,-10>, 0.1, damageTypes.projectileImpact, damageTypes.explosive, false, true, false )
 			if( grenade )
+			{
 				grenade.SetOwner( player )
+				grenade.ClearBossPlayer()
+			}
 		}
 	)
 

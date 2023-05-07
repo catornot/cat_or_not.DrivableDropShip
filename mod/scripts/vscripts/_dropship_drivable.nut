@@ -4,6 +4,23 @@ global function SetFlightBounds
 
 global function DropShipDied
 
+global function GetShipWeaponString
+
+global enum eDrivableShipType
+{
+    DropShip,
+    GunShip
+}
+
+global enum eDrivableShipWeapon
+{
+    Nuke,
+    Missile,
+    Bombs,
+    Lazer,
+    Gun,
+}
+
 global struct DropShiptruct
 {
     ShipStruct& dropship
@@ -19,9 +36,11 @@ global struct DropShiptruct
     int cam_state = 0
     int gun_type = 0
     float time_gun_switch = 0.0
-    string shipType // gunship, dropship
+    int shipType
     entity crosshair
     entity laser
+    string health_handle
+    string ammo_handle
 }
 
 struct {
@@ -45,13 +64,13 @@ const DRIVABLE_GUNSHIP_HEALTH = 4000
                                           
 */
 
-DropShiptruct function SpawnDrivableDropShip( vector origin, vector angles = CONVOYDIR, int team = TEAM_IMC, string shipType = "dropship" )
+DropShiptruct function SpawnDrivableDropShip( vector origin, vector angles = CONVOYDIR, int team = TEAM_IMC, int shipType = eDrivableShipType.DropShip )
 {
     InitKeyTracking()
 
     DropShiptruct dropship
 
-    ShipStruct ship = SpawnDropShipLight( WorldToLocalOrigin( origin ), angles, team, true, shipType == "gunship" ? true : false )
+    ShipStruct ship = SpawnDropShipLight( WorldToLocalOrigin( origin ), angles, team, true, shipType == eDrivableShipType.DropShip )
     ship.behavior = eBehavior.CUSTOM
     
     ship.mover.SetPusher( true )
@@ -59,10 +78,11 @@ DropShiptruct function SpawnDrivableDropShip( vector origin, vector angles = CON
 
     dropship.shipType = shipType
     int curShipHealth = DRIVABLE_DROPSHIP_HEALTH
-    if( shipType == "gunship" )
+    if( shipType == eDrivableShipType.GunShip )
     {
+        dropship.gun_type = eDrivableShipWeapon.Gun
         curShipHealth = DRIVABLE_GUNSHIP_HEALTH
-        // if ( team == TEAM_IMC ) // TODO: make this work
+        // if ( team == TEAM_IMC ) // TODO: make this work. maybe never
         // {
         ship.model.SetModel( $"models/vehicle/straton/straton_imc_gunship_01.mdl" )
         ship.model.SetValueForModelKey( $"models/vehicle/straton/straton_imc_gunship_01.mdl" )
@@ -73,8 +93,11 @@ DropShiptruct function SpawnDrivableDropShip( vector origin, vector angles = CON
         //     ship.model.SetValueForModelKey( $"models/vehicle/hornet/hornet_fighter.mdl" )
         // }
     }
-    if( shipType == "dropship" )
+    if( shipType == eDrivableShipType.DropShip )
+    {
+        dropship.gun_type = eDrivableShipWeapon.Bombs
         thread PlayAnim( ship.model, "dropship_open_doorL", dropship.dropship.mover )
+    }
 
     ship.model.SetMaxHealth( curShipHealth )
 	ship.model.SetHealth( ship.model.GetMaxHealth() )
@@ -87,21 +110,6 @@ DropShiptruct function SpawnDrivableDropShip( vector origin, vector angles = CON
     ShowName( ship.model )
     dropship.dropship = ship
 
-    // vector origin = ship.mover.GetForwardVector() * 250
-    // origin += ship.mover.GetUpVector() * -70
-    // origin += ship.mover.GetOrigin()
-
-    // entity turret = CreateNPC( "npc_turret_sentry", TEAM_BOTH, origin, <180,180,0> + ship.model.GetAngles() )
-    // SetSpawnOption_AISettings( turret, "npc_turret_sentry" )
-    // DispatchSpawn( turret )
-    // HideName( turret )
-    // turret.SetParent( ship.mover )
-    // turret.EnableTurret()
-    // dropship.panel = turret // placeholder
-
-    // SetupRocketMarvin( dropship )
-    // SetupDropshipTurret( dropship )
-
     thread DropShipWaitForDriver( dropship )
     
     return dropship
@@ -110,14 +118,12 @@ DropShiptruct function SpawnDrivableDropShip( vector origin, vector angles = CON
 void function DropShipWaitForDriver( DropShiptruct dropship )
 {
     entity model = dropship.dropship.model
+
     model.SetUsable()
     model.SetOwner( null )
     StopSoundOnEntity( model, "amb_emit_s2s_rushing_wind_strong_v2_02b" )
     StopSoundOnEntity( model, "amb_emit_s2s_distant_ambient_ships" )
     dropship.cam_state = 0
-
-    // if ( IsValid( dropship.panel ) )
-    //     dropship.panel.DisableTurret()
 
     entity player = expect entity( model.WaitSignal( "OnPlayerUse" ).player )
 
@@ -143,12 +149,11 @@ void function DropShipWaitForDriver( DropShiptruct dropship )
     dropship.dropship.mover.SetOwner( player )
     ScreenFade( player, 0, 0, 0, 255, 0.3, 0.3, (FFADE_IN | FFADE_PURGE) )
 
-    // if ( IsValid( dropship.panel ) )
-    // {
-    //     dropship.panel.EnableTurret()
-    //     dropship.panel.SetOwner( player )
-    //     SetTeam( dropship.panel, player.GetTeam() )
-    // }
+    dropship.health_handle = UniqueString( "health" )
+    NSCreateStatusMessageOnPlayer( player, "Health", string( dropship.dropship.model.GetHealth() ), dropship.health_handle )
+
+    dropship.ammo_handle = UniqueString( "ammo" )
+    NSCreateStatusMessageOnPlayer( player, "Reload", "Done", dropship.ammo_handle )
 
     thread DropShipDrive( dropship )
 }
@@ -170,6 +175,7 @@ void function DropShipDrive( DropShiptruct dropship )
     OnThreadEnd(
 		function () : ( dropship, ship, model )
 		{
+            // dbg stuff
             print( "dropship driving loop is over" )
             print( "player :" + model.GetOwner() )
             print( "location :" + model.GetOrigin() )
@@ -307,14 +313,25 @@ void function DropShipDrive( DropShiptruct dropship )
         RotateDropShip( dropship, angles )
 
         if ( keys[KO4] )
-            SwitchWepon( dropship )  
+            SwitchWeapon( dropship )
 
         if ( keys[KO0] )
         {
-            if( dropship.shipType == "gunship" )
-                TryFireBullet( dropship )
-            else
-                TryFireMissle( dropship )
+            switch( dropship.shipType )
+            {
+                case eDrivableShipType.GunShip:
+                    TryFireBullet( dropship )
+                    break
+                case eDrivableShipType.DropShip:
+                    if ( HasEnoughSpeed( dropship ) ) // too lazy to do it for both
+                    {
+                        if ( dropship.gun_type == eDrivableShipWeapon.Bombs )
+                            TryFireBombs( dropship )
+                        else
+                            TryFireMissle( dropship )
+                    }
+                    break
+            }
         }
         
         if ( dropship.time_cam > Time() )
@@ -327,7 +344,8 @@ void function DropShipDrive( DropShiptruct dropship )
 
         UpdatedCameraPosition( dropship )
         UpdateDropshipCrosshair( dropship )
-        //DisplayHealthToDriver( dropship )
+        DisplayHealthToDriver( dropship )
+        DisplayAmmoToDriver( dropship )
 
         if ( dropship.time_sound < Time() ) // add hover and flight sounds
         {
@@ -359,6 +377,10 @@ void function DropShipDied( DropShiptruct dropship, entity model )
         player.SetOrigin( origin + <0,0,150> )
         player.ClearInvulnerable()
         thread PlayerFlyOut( player )
+
+        NSDeleteStatusMessageOnPlayer( player, dropship.health_handle )
+        NSDeleteStatusMessageOnPlayer( player, dropship.ammo_handle )
+            
     }
     if ( IsValid( dropship.crosshair ) )
         dropship.crosshair.kv.VisibilityFlags = 0
@@ -450,6 +472,12 @@ void function HandlePlayerDeathInDropship( DropShiptruct dropship, entity model 
     DestroyDropShipCamera( dropship )
     // model.GetOwner().ClearParent()
 
+    if ( IsValid( model.GetOwner() ) )
+    {
+        NSDeleteStatusMessageOnPlayer( model.GetOwner(), dropship.health_handle )
+        NSDeleteStatusMessageOnPlayer( model.GetOwner(), dropship.ammo_handle )
+    }
+
     vector angles = dropship.dropship.mover.GetAngles()
     angles.x = 0
     // dropship.dropship.mover.NonPhysicsRotateTo( angles, 2, 0.1, 0.1 )
@@ -478,6 +506,10 @@ void function HandleExitRequest( DropShiptruct dropship, entity player )
     player.ClearInvulnerable()
     thread PlayerFlyOut( player )
     ScreenFade( player, 0, 0, 0, 255, 0.3, 0.3, (FFADE_IN | FFADE_PURGE) )
+
+    NSDeleteStatusMessageOnPlayer( player, dropship.health_handle )
+    NSDeleteStatusMessageOnPlayer( player, dropship.ammo_handle )
+            
 
     // dropship.camera.Destroy()
 
@@ -707,42 +739,42 @@ void function UpdatedCameraPosition( DropShiptruct dropship )
     }
 }
 
-void function SwitchWepon( DropShiptruct dropship )
+void function SwitchWeapon( DropShiptruct dropship )
 {
     entity player = dropship.dropship.model.GetOwner()
-    string shipType = dropship.shipType
     if ( dropship.time_gun_switch < Time() )
     {
-        if( shipType == "gunship" )
+        switch ( dropship.shipType )
         {
-            if ( dropship.gun_type == 1 )
-            {
-                if( IsValid( player ))
-                    SendHudMessage(player, "Switching to Gunship Launcher" , -1, -0.35, 255, 255, 0, 255, 0, 2, 0)
-                dropship.gun_type = 0
-            }
-            else
-            {
-                if( IsValid( player ))
-                    SendHudMessage(player, "Switching to Laser Rifle" , -1, -0.35, 255, 255, 0, 255, 0, 2, 0)
-                dropship.gun_type = 1
-            }
+            case eDrivableShipType.GunShip:
+                switch( dropship.gun_type )
+                {
+                    case eDrivableShipWeapon.Gun:
+                        dropship.gun_type = eDrivableShipWeapon.Lazer
+                        break
+                    case eDrivableShipWeapon.Lazer:
+                        dropship.gun_type = eDrivableShipWeapon.Gun
+                        break
+                }
+                break
+
+            case eDrivableShipType.DropShip:
+                switch( dropship.gun_type )
+                {
+                    case eDrivableShipWeapon.Bombs:
+                        dropship.gun_type = eDrivableShipWeapon.Nuke
+                        break
+                    case eDrivableShipWeapon.Nuke:
+                        dropship.gun_type = eDrivableShipWeapon.Bombs
+                        break
+                    case eDrivableShipWeapon.Missile:
+                        dropship.gun_type = eDrivableShipWeapon.Nuke
+                        break
+                }
+                break
         }
-        if( shipType == "dropship" )
-        {
-            if ( dropship.gun_type == 1 )
-            {
-                if( IsValid( player ))
-                    SendHudMessage(player, "Switching to Nulclear Missile" , -1, -0.35, 255, 255, 0, 255, 0, 2, 0)
-                dropship.gun_type = 0
-            }
-            else
-            {
-                if( IsValid( player ))
-                    SendHudMessage(player, "Switching to Rapid Missile" , -1, -0.35, 255, 255, 0, 255, 0, 2, 0)
-                dropship.gun_type = 1
-            }
-        }
+
+        thread SwitchMessage( player, dropship )
         
         EmitSoundOnEntityOnlyToPlayer( dropship.dropship.model.GetOwner(), dropship.dropship.model.GetOwner(), "UI_Networks_Invitation_Accepted" )
 
@@ -750,17 +782,60 @@ void function SwitchWepon( DropShiptruct dropship )
     }
 }
 
+void function SwitchMessage( entity player, DropShiptruct dropship )
+{
+    wait 0
+
+    if( IsValid( player ) )
+        SendHudMessage( player, "Switching to " + GetShipWeaponString( dropship ) , -1, -0.2, 150, 150, 150, 255, 0.15, 10, 1 )
+}
+
+string function GetShipWeaponString( DropShiptruct dropship )
+{
+
+    switch( dropship.gun_type )
+    {
+        case eDrivableShipWeapon.Gun:
+            return "Gunship Launcher"
+        case eDrivableShipWeapon.Lazer:
+            return "Laser Rifle"
+        case eDrivableShipWeapon.Nuke:
+            return "Nuke Missile"
+        case eDrivableShipWeapon.Missile:
+            return "Dumb-fire Missile"
+        case eDrivableShipWeapon.Bombs:
+            return "Bombs"
+    }
+
+    return "NULL"
+}
+
 void function DisplayHealthToDriver( DropShiptruct dropship )
 {
     entity player = dropship.dropship.model.GetOwner()
     int health = dropship.dropship.model.GetHealth()
-    SendHudMessage( player, "Health Left: " + string( health ) , -1, -0.35, 100, 200, 50, 255, 0.0, 0.2, 0.0 )
+    NSEditStatusMessageOnPlayer( player, "Health", string( health ), dropship.health_handle )
+}
+
+void function DisplayAmmoToDriver( DropShiptruct dropship )
+{
+    entity player = dropship.dropship.model.GetOwner()
+    string ammo = string( (dropship.time_fired - Time()).tointeger() )
+    
+    if ( dropship.shipType == eDrivableShipType.DropShip && !HasEnoughSpeed( dropship ) )
+        ammo = "Disabled (hovering)"
+    else if ( dropship.time_fired - Time() <= 0 )
+        ammo = "Done"
+    else if ( dropship.time_fired - Time() <= -2 )
+        return
+
+    NSEditStatusMessageOnPlayer( player, "Reload", ( ammo ), dropship.ammo_handle )
 }
 
 void function SpawnDropShipCrosshair( DropShiptruct dropship )
 {
     string attachment // anti crash? for unknown models
-    if( dropship.shipType == "gunship" )
+    if( dropship.shipType == eDrivableShipType.GunShip )
         attachment = "Spotlight"
     entity laser
     if( attachment != "" )
