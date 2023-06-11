@@ -192,20 +192,25 @@ void function TryFireBombs( DropShiptruct dropship )
 	if ( dropship.time_fired > Time() )
 		return
 	else 
-		dropship.time_fired = Time() + 0.5
+		dropship.time_fired = Time() + 1.0
 
 	vector attackPos = mover.GetOrigin() + ( mover.GetForwardVector() * 400 ) + ( mover.GetUpVector() * -100 )
 	
 	vector attackDir = AnglesToForward( < mover.GetAngles().x, mover.GetAngles().y, 0.0 > ) * 100 + <0,0,-300>
 
 	entity grenade = weapon.FireWeaponGrenade( attackPos, attackDir, attackDir, 1, damageTypes.projectileImpact, damageTypes.explosive, false, true, false )
+	
 	if( grenade )
 	{
 		grenade.SetScriptName( "nuke" )
 		grenade.SetOwner( player )
 		grenade.ClearBossPlayer()
 		SetTeam( grenade, player.GetTeam() )
+
+		thread BombThink( grenade, player )
 	}
+
+	
 }
 
 void function CreateWeaponTracer( vector startPos, vector endPos, float lifeDuration, asset tracerAsset = $"P_wpn_hand_laser_beam_BC" )
@@ -309,6 +314,42 @@ void function MissileThink( entity missile, entity owner, entity player, WeaponP
 		attackParams.pos = missile.GetOrigin()
 		WaitFrame()
 	}
+}
+
+void function BombThink( entity bomb, entity owner )
+{
+	int team = owner.GetTeam()
+	bomb.EndSignal( "OnDestroy" )
+	bomb.EndSignal( "Planted" )
+	
+	OnThreadEnd(
+		function() : ( team, bomb, owner )
+		{
+			if ( !IsValid( bomb ) )
+				return
+
+			vector origin = bomb.GetOrigin()
+
+			entity inflictor = CreateExplosionInflictor( origin )
+				
+			entity explosionOwner
+			if ( IsValid( owner ) )
+				explosionOwner = owner
+			else
+				explosionOwner = GetTeamEnt( team )
+			
+			foreach( int dist in [300,400,500] )
+				RadiusDamage_DamageDefSimple(
+					damagedef_fd_explosive_barrel,
+					origin,								// origin
+					explosionOwner,						// owner
+					inflictor,							// inflictor
+					dist )								// dist from attacker
+			
+		}
+	)
+
+	bomb.WaitSignal( "Planted" )
 }
 
 void function DEV_NadeTest()

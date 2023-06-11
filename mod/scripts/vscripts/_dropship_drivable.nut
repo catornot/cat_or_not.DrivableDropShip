@@ -820,7 +820,7 @@ void function DisplayHealthToDriver( DropShiptruct dropship )
 void function DisplayAmmoToDriver( DropShiptruct dropship )
 {
     entity player = dropship.dropship.model.GetOwner()
-    string ammo = string( (dropship.time_fired - Time()).tointeger() )
+    string ammo = string( ceil(dropship.time_fired - Time()).tointeger() )
     
     if ( dropship.shipType == eDrivableShipType.DropShip && !HasEnoughSpeed( dropship ) )
         ammo = "Disabled (hovering)"
