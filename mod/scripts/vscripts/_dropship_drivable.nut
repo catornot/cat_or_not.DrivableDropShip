@@ -64,8 +64,10 @@ const DRIVABLE_GUNSHIP_HEALTH = 4000
                                           
 */
 
-DropShiptruct function SpawnDrivableDropShip( vector origin, vector angles = CONVOYDIR, int team = TEAM_IMC, int shipType = eDrivableShipType.DropShip )
+DropShiptruct function SpawnDrivableDropShip( vector origin, vector angles = CONVOYDIR, int team = TEAM_IMC, string s_shipType = "dropship" )
 {
+    int shipType = ToEnumShipType( s_shipType )
+
     InitKeyTracking()
 
     DropShiptruct dropship
@@ -881,6 +883,15 @@ void function UpdateDropshipCrosshair( DropShiptruct dropship )
     TraceResults result = TraceLine( attackPos, traceEnd, [], TRACE_MASK_SHOT, TRACE_COLLISION_GROUP_NONE )
     
     dropship.crosshair.SetOrigin( result.endPos )
+}
+
+int function ToEnumShipType( string shipType )
+{
+    if ( shipType == "dropship" ) 
+    {
+        return eDrivableShipType.DropShip
+    }
+    return eDrivableShipType.GunShip
 }
 
 void function DEV_SpawnDrivableDropShip()
